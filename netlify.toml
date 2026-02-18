@@ -1,7 +1,7 @@
 [build]
   base    = "nextjs_space"
-  command = "npm run build"
-  publish = "nextjs_space/.next"
+  command = "npx prisma generate && npm run build"
+  publish = ".next"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
