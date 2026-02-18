@@ -42,10 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <script src="https://apps.abacus.ai/chatllm/appllm-lib.js" />
-      </head>
+      <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} bg-gray-950 text-white antialiased`}>
         <Providers>
           <Header />

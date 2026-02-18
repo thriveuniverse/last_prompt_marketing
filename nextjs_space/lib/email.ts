@@ -13,30 +13,53 @@ export async function sendNotificationEmail({
 }) {
   const appUrl = process.env.NEXTAUTH_URL || "";
   const appName = appUrl ? new URL(appUrl).hostname.split(".")[0] : "LastPrompt";
+  const fromEmail = process.env.FROM_EMAIL || (appUrl ? `noreply@${new URL(appUrl).hostname}` : "noreply@lastprompt.com");
+  const fromName = process.env.FROM_NAME || appName;
 
-  try {
-    const response = await fetch("https://apps.abacus.ai/api/sendNotificationEmail", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        deployment_token: process.env.ABACUSAI_API_KEY,
-        app_id: process.env.WEB_APP_ID,
-        notification_id: notificationId,
-        subject,
-        body,
-        is_html: isHtml,
-        recipient_email: recipientEmail,
-        sender_email: appUrl ? `noreply@${new URL(appUrl).hostname}` : undefined,
-        sender_alias: appName,
-      }),
-    });
+  // Use Resend if API key is configured
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: `${fromName} <${fromEmail}>`,
+          to: [recipientEmail],
+          subject,
+          html: isHtml ? body : undefined,
+          text: isHtml ? undefined : body,
+        }),
+      });
 
-    const result = await response.json();
-    return { success: result.success, disabled: result.notification_disabled };
-  } catch (error) {
-    console.error("Email send error:", error);
-    return { success: false, error };
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Resend API error: ${error}`);
+      }
+
+      const result = await response.json();
+      return { success: true, disabled: false };
+    } catch (error) {
+      console.error("Email send error (Resend):", error);
+      return { success: false, error };
+    }
   }
+
+  // Fallback: Log email in development (emails won't actually be sent)
+  if (process.env.NODE_ENV === "development") {
+    console.log("📧 Email would be sent (development mode):", {
+      to: recipientEmail,
+      subject,
+      from: `${fromName} <${fromEmail}>`,
+    });
+    return { success: true, disabled: false };
+  }
+
+  // Production without email service configured
+  console.warn("Email service not configured. Set RESEND_API_KEY to send emails.");
+  return { success: false, error: "Email service not configured" };
 }
 
 export function getVerificationEmailHtml(name: string, verifyUrl: string) {
